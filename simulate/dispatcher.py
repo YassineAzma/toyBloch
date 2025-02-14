@@ -70,16 +70,13 @@ class BlochDispatcher:
 
         # Sequence objects
         self._rf: Optional[RFPulse] = None
-        self._grad: list[Optional[Gradient]] = [None, None, None]
+        self._grad: Optional[Gradient] = None
 
     def set_rf(self, rf: RFPulse) -> None:
         self._rf = rf
 
-    def set_grad(self, grad: Gradient, axis: int) -> None:
-        if axis < 0 or axis > 2:
-            raise ValueError("axis must be between 0 and 2.")
-
-        self._grad[axis] = grad
+    def set_grad(self, grad: Gradient) -> None:
+        self._grad = grad
 
     def set_df(self, df: torch.Tensor) -> None:
         self.df = df
@@ -91,7 +88,7 @@ class BlochDispatcher:
         self.pos = pos
 
     def determine_style(self) -> SimulationStyle:
-        gradients_active = np.any([grad is not None for grad in self._grad])
+        gradients_active = self._grad is not None
         rf_active = self._rf is not None
 
         isochromats_have_position = self.pos is not None
@@ -112,7 +109,7 @@ class BlochDispatcher:
         if style == SimulationStyle.RELAXATION:
             return 0
         else:
-            sequence_objects = [self._rf, self._grad[0], self._grad[1], self._grad[2]]
+            sequence_objects = [self._rf, self._grad]
             object_lengths = [len(obj.waveform) for obj in sequence_objects if obj is not None]
 
             if len(set(object_lengths)) != 1:
@@ -125,11 +122,6 @@ class BlochDispatcher:
     def prepare_kernel_arguments(self, style: SimulationStyle, gpu_available: bool) -> list:
         kernel_args = []
 
-        if gpu_available:
-            gradients = torch.zeros((3, self.get_simulation_steps(style)), dtype=torch.float64)
-        else:
-            gradients = np.zeros((3, self.get_simulation_steps(style)), dtype=np.float64)
-
         for arg in arguments[style]:
             if arg in ('df', 'pos') and style == SimulationStyle.SPATIAL_SPECTRAL:
                 pos_grid = torch.zeros((3, len(self.df), self.pos.shape[1]), dtype=torch.float64)
@@ -140,16 +132,6 @@ class BlochDispatcher:
                 attr = freq_grid.flatten() if arg == 'df' else pos_grid.reshape(3, -1)
             else:
                 attr = getattr(self, arg)
-
-            # Special handling for gradients
-            if arg == '_grad':
-                for axis, grad in enumerate(self._grad):
-                    if grad is not None and hasattr(grad, 'waveform'):
-                        grad_waveform = grad.waveform
-                        gradients[axis] = self._convert_to_device(grad_waveform, gpu_available)
-
-                kernel_args.append(self._convert_to_device(gradients, gpu_available))
-                continue
 
             # General handling for other attributes
             if hasattr(attr, 'waveform'):

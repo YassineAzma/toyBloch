@@ -12,7 +12,7 @@ class SequenceEvent:
 
 class SequenceObject:
     def __init__(self, times: torch.Tensor, waveform: torch.Tensor):
-        if len(times) != len(waveform):
+        if len(times) != waveform.shape[-1]:
             raise ValueError("times and waveform must have the same length.")
 
         # ORIGINAL
@@ -20,8 +20,13 @@ class SequenceObject:
         self._waveform = waveform
 
         # CURRENT
-        self._normalized_waveform = self._waveform / torch.abs(self._waveform).max()
-        self.amplitude = torch.abs(self._waveform).max()
+        if self._waveform.ndim == 1:
+            self._normalized_waveform = self._waveform / torch.abs(self._waveform).max()
+            self.amplitude = torch.abs(self._waveform).max()
+        else:
+            amplitudes = torch.max(torch.abs(self._waveform), dim=-1).values
+            self._normalized_waveform = self._waveform / amplitudes[:, torch.newaxis]
+            self.amplitude = amplitudes
 
         self._current_times = self._times.detach().clone()
 

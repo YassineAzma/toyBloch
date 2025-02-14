@@ -14,44 +14,64 @@ class Gradient(SequenceObject):
     @staticmethod
     def get_amplitude(bandwidth: float, dz: float) -> float:
         return bandwidth / (dz * GAMMA)
+
     @property
-    def flat_time(self) -> float:
-        return (len(torch.where(self.waveform == self.amplitude)[0]) - 1) * self.dt
+    def flat_time(self) -> list[float]:
+        flat_times = []
+        for axis in range(3):
+            flat_indices = torch.where(self.waveform[axis] == self.amplitude[axis])[0]
+            if len(flat_indices) > 1:
+                flat_duration = (len(flat_indices) - 1) * self.dt
+            else:
+                flat_duration = 0.0  # No flat section found
+
+            flat_times.append(flat_duration)
+
+        return flat_times
 
     @property
     def slew_rate(self) -> torch.Tensor:
-        return torch.gradient(self.waveform, spacing=self.dt * 1e-6, dim=0)[0]
+        return torch.gradient(self.waveform, spacing=self.dt * 1e-6, dim=-1)[0]
 
     @property
     def zeroth_moment(self) -> torch.Tensor:
-        return torch.cumsum(self.waveform * self.dt, dim=0) * 1e-6
+        return torch.cumsum(self.waveform * self.dt, dim=-1) * 1e-6
 
     @property
     def first_moment(self) -> torch.Tensor:
-        return torch.cumsum(self.waveform * self.dt * self.times, dim=0) * 1e-6 ** 2
+        return torch.cumsum(self.waveform * self.dt * self.times, dim=-1) * 1e-6 ** 2
+
+    @property
+    def waveform(self) -> torch.Tensor:
+        return self.amplitude[:, torch.newaxis] * self._normalized_waveform
 
     def display(self) -> None:
         fig, ax = plt.subplots(2, 1, sharex=True)
 
-        ax[0].plot(self.times * 1e-3, self.waveform * 1e3)
-        ax[0].set_ylabel('Amplitude (mT/m)')
-        ax[0].grid()
+        labels = [f'$G_{{x}}$', f'$G_{{y}}$', f'$G_{{z}}$']
+        colors = ['k', 'b', 'r']
+        for axis in range(3):
+            ax[0].plot(self.times * 1e-3, self.waveform[axis] * 1e3, color=colors[axis], label=labels[axis])
+            ax[0].set_ylabel('Amplitude (mT/m)')
+            ax[0].grid()
 
-        ax[1].plot(self.times * 1e-3, self.slew_rate)
-        ax[1].set_xlabel('Time (ms)')
-        ax[1].set_ylabel('Slew Rate (T/m/ms)')
-        ax[1].grid()
+            ax[1].plot(self.times * 1e-3, self.slew_rate[axis], color=colors[axis], label=labels[axis])
+            ax[1].set_xlabel('Time (ms)')
+            ax[1].set_ylabel('Slew Rate (T/m/ms)')
+            ax[1].grid()
 
+        ax[0].legend()
         plt.subplots_adjust(hspace=0.1)
         plt.show()
 
 
-def rect(duration: int, *, n: Optional[int] = None, dt: Optional[float] = None) -> Gradient:
+def rect(duration: int, axis: int, *, n: Optional[int] = None, dt: Optional[float] = None) -> Gradient:
     """
     Generate a rectangular gradient lobe with a choice of duration. Sampling can be specified by n or dt.
 
     Args:
         duration (int): The duration of the gradient in microseconds.
+        axis (int): The axis of the gradient. 0 for x, 1 for y, 2 for z.
         n (int | None): The number of samples to generate. Defaults to None.
         dt (float | None): The sampling interval in microseconds. Defaults to None.
 
@@ -59,17 +79,20 @@ def rect(duration: int, *, n: Optional[int] = None, dt: Optional[float] = None) 
         Gradient: A Gradient object representing the generated rectangular hard pulse.
     """
     times = determine_times(duration, n, dt)
-    waveform = torch.ones_like(times)
+    waveform = torch.zeros((3, len(times)))
+    waveform[axis] = torch.ones(len(times))
 
     return Gradient(times, waveform)
 
 
-def trapezium(duration: int, ramp_time: int, *, n: Optional[int] = None, dt: Optional[float] = None) -> Gradient:
+def trapezium(duration: int, axis: int, ramp_time: int, *,
+              n: Optional[int] = None, dt: Optional[float] = None) -> Gradient:
     """
     Generate a trapezium gradient lobe with a choice of duration and ramp time. Sampling can be specified by n or dt.
 
     Args:
         duration (int): The duration of the gradient in microseconds.
+        axis (int): The axis of the gradient. 0 for x, 1 for y, 2 for z.
         ramp_time (int): The ramp time of the gradient in microseconds.
         n (int | None): The number of samples to generate. Defaults to None.
         dt (float | None): The sampling interval in microseconds. Defaults to None.
@@ -90,17 +113,20 @@ def trapezium(duration: int, ramp_time: int, *, n: Optional[int] = None, dt: Opt
     flat_length = round(duration / dt) - 2 * ramp_length
     flat = torch.ones(flat_length + 1)
 
-    waveform = torch.concatenate((ramp, flat, torch.flip(ramp, dims=[0])))
+    waveform = torch.zeros((3, len(times)))
+    waveform[axis] = torch.concatenate((ramp, flat, torch.flip(ramp, dims=[0])))
 
     return Gradient(times, waveform)
 
 
-def quarter_sine(duration: int, ramp_time: int, *, n: Optional[int] = None, dt: Optional[float] = None) -> Gradient:
+def quarter_sine(duration: int, axis: int, ramp_time: int, *,
+                 n: Optional[int] = None, dt: Optional[float] = None) -> Gradient:
     """
     Generate a quarter sine gradient lobe with a choice of duration and ramp time. Sampling can be specified by n or dt.
 
     Args:
         duration (int): The duration of the gradient in microseconds.
+        axis (int): The axis of the gradient. 0 for x, 1 for y, 2 for z.
         ramp_time (int): The ramp time of the gradient in microseconds.
         n (int | None): The number of samples to generate. Defaults to None.
         dt (float | None): The sampling interval in microseconds. Defaults to None.
@@ -121,6 +147,7 @@ def quarter_sine(duration: int, ramp_time: int, *, n: Optional[int] = None, dt: 
     flat_length = round(duration / dt) - 2 * ramp_length
     flat = torch.ones(flat_length + 1)
 
-    waveform = torch.concatenate((ramp, flat, torch.flip(ramp, dims=[0])))
+    waveform = torch.zeros((3, len(times)))
+    waveform[axis] = torch.concatenate((ramp, flat, torch.flip(ramp, dims=[0])))
 
     return Gradient(times, waveform)
