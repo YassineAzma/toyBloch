@@ -177,8 +177,8 @@ cython_debug/
 .pypirc
 
 # Test files
-test*.py
-*test.py
+test.py
+test.py
 
 # Idea
 .idea/
