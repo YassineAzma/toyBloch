@@ -377,7 +377,6 @@ def gpu_spatial_spectral(t1: float, t2: float, dt: float, df: torch.Tensor, pos:
             for axis in active_gradient_axes:
                 magnetisation[i] = grad_rotations[axis, i] @ magnetisation[i]
 
-            magnetisation[i + 1] = A @ magnetisation[i] + B
-            magnetisation[i + 1] = rf_rotations[i] @ magnetisation[i + 1]
+            magnetisation[i + 1] = rf_rotations[i] @ (A @ magnetisation[i] + B)
 
         return torch.permute(magnetisation, (1, 0, 2, 3))
