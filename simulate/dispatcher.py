@@ -187,7 +187,7 @@ class BlochDispatcher:
         simulation_steps = magnetisation.shape[1]
 
         if verbose:
-            print(f'{style} took {time.perf_counter() - init_time:.3f} seconds for {num_iso} isochromats '
+            print(f'{style} took {time.perf_counter() - init_time:.3f}s for {num_iso} isochromats '
                   f'undergoing {simulation_steps} time steps using {"GPU" if gpu_available else "CPU"}. '
                   f'Total iterations = {num_iso * simulation_steps}, '
                   f'iters/s = {num_iso * simulation_steps / (time.perf_counter() - init_time):.2f}')
