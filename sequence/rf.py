@@ -416,7 +416,7 @@ def foci(duration: int, gradient_ratio: float, *,
     return rf, grad
 
 
-def wurst(duration: int, bandwidth: float, *, exponent: int = 20,
+def wurst(duration: int, bandwidth: float, *, exponent: float = 20,
           n: Optional[int] = None, dt: Optional[float] = None) -> RFPulse:
     """
     Generate a wideband, uniform rate, smooth truncation (WURST) pulse with a choice of duration, bandwidth
@@ -425,7 +425,7 @@ def wurst(duration: int, bandwidth: float, *, exponent: int = 20,
     Args:
         duration (int): The duration of the pulse in microseconds.
         bandwidth (float): The modulation bandwidth in Hz.
-        exponent (int): The exponent of the modulation. Defaults to 20.
+        exponent (float): The exponent of the modulation. Defaults to 20.
         n (int | None): The number of samples to generate. Defaults to None.
         dt (float | None): The sampling interval in microseconds. Defaults to None.
 
