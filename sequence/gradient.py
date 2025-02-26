@@ -46,22 +46,27 @@ class Gradient(SequenceObject):
         return self.amplitude[:, torch.newaxis] * self._normalized_waveform
 
     def display(self) -> None:
-        fig, ax = plt.subplots(2, 1, sharex=True)
+        fig, ax = plt.subplots(2, 3, figsize=(12, 9), sharex=True)
 
         labels = [f'$G_{{x}}$', f'$G_{{y}}$', f'$G_{{z}}$']
         colors = ['k', 'b', 'r']
+
+        max_amplitude = torch.max(torch.abs(self.waveform)) * 1e3 + 1
+        max_slew_rate = torch.max(torch.abs(self.slew_rate)) + 10
+
         for axis in range(3):
-            ax[0].plot(self.times * 1e-3, self.waveform[axis] * 1e3, color=colors[axis], label=labels[axis])
-            ax[0].set_ylabel('Amplitude (mT/m)')
-            ax[0].grid()
+            ax[0, axis].plot(self.times * 1e-3, self.waveform[axis] * 1e3, color=colors[axis])
+            ax[0, axis].grid()
+            ax[0, axis].set_ylim([-max_amplitude, max_amplitude])
+            ax[0, axis].set_title(labels[axis], fontsize=16)
 
-            ax[1].plot(self.times * 1e-3, self.slew_rate[axis], color=colors[axis], label=labels[axis])
-            ax[1].set_xlabel('Time (ms)')
-            ax[1].set_ylabel('Slew Rate (T/m/ms)')
-            ax[1].grid()
+            ax[1, axis].plot(self.times * 1e-3, self.slew_rate[axis], color=colors[axis])
+            ax[1, axis].grid()
+            ax[1, axis].set_ylim([-max_slew_rate, max_slew_rate])
 
-        ax[0].legend()
-        plt.subplots_adjust(hspace=0.1)
+        fig.text(0.5, 0.04, 'Time (ms)', fontsize=16, ha='center', va='center')
+        fig.text(0.06, 0.7, 'Amplitude (mT/m)', fontsize=16, va='center', rotation='vertical')
+        fig.text(0.06, 0.3, 'Slew Rate (T/m/ms)', fontsize=16, va='center', rotation='vertical')
         plt.show()
 
 

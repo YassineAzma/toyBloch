@@ -3,6 +3,8 @@ from typing import Optional
 import numpy as np
 import torch
 
+from constants import EPSILON
+
 
 class SequenceEvent:
     def __init__(self, name: str, init_time: float):
@@ -25,7 +27,7 @@ class SequenceObject:
             self.amplitude = torch.abs(self._waveform).max()
         else:
             amplitudes = torch.max(torch.abs(self._waveform), dim=-1).values
-            self._normalized_waveform = self._waveform / amplitudes[:, torch.newaxis]
+            self._normalized_waveform = self._waveform / (amplitudes[:, torch.newaxis] + EPSILON)
             self.amplitude = amplitudes
 
         self._current_times = self._times.detach().clone()
