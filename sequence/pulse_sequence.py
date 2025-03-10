@@ -119,7 +119,6 @@ class PulseSequence:
 
     @staticmethod
     def get_segments(init_times: list[float], max_time: float, events: list[SequenceEvent]):
-        # covered segments
         covered_segments = []
         for init_time, event in zip(init_times, events):
             covered_segments.append((init_time, init_time + event.duration))
@@ -153,22 +152,22 @@ class PulseSequence:
         max_length = math.ceil(kernel_length / 2000.0) * 2000.0
 
         if len(adc_objects) == 0:
-            plt.plot([0, max_length * 1e-3], [2, 2], color='k')
+            plt.plot([0, max_length * 1e-3], [1, 1], color='k')
         else:
             adc_start_times, adc_objects = zip(*self.get_adc())
             adc_segments, empty_adc_segments = self.get_segments(adc_start_times, max_length, adc_objects)
 
             for init_time, end_time in empty_adc_segments:
-                plt.plot([init_time * 1e-3, end_time * 1e-3], [2, 2], color='k')
+                plt.plot([init_time * 1e-3, end_time * 1e-3], [1, 1], color='k')
             for init_time, adc in zip(adc_start_times, adc_objects):
-                plt.plot([init_time * 1e-3, init_time * 1e-3], [2, 3], color='k')
-                plt.plot((init_time + adc.times) * 1e-3, 2 + torch.ones_like(adc.times), color='k')
-                plt.plot([(init_time + adc.duration) * 1e-3, (init_time + adc.duration) * 1e-3], [2, 3], color='k')
+                plt.plot([init_time * 1e-3, init_time * 1e-3], [1, 2], color='k')
+                plt.plot((init_time + adc.times) * 1e-3, 1 + torch.ones_like(adc.times), color='k')
+                plt.plot([(init_time + adc.duration) * 1e-3, (init_time + adc.duration) * 1e-3], [1, 2], color='k')
 
         if len(grad_objects) == 0:
-            plt.plot([0, max_length * 1e-3], [4, 4], color='k')
-            plt.plot([0, max_length * 1e-3], [6, 6], color='k')
-            plt.plot([0, max_length * 1e-3], [8, 8], color='k')
+            plt.plot([0, max_length * 1e-3], [3, 3], color='k')
+            plt.plot([0, max_length * 1e-3], [5, 5], color='k')
+            plt.plot([0, max_length * 1e-3], [7, 7], color='k')
         else:
             grad_start_times, grad_objects = zip(*self.get_gradients())
             grad_segments, empty_grad_segments = self.get_segments(grad_start_times, max_length, grad_objects)
@@ -176,16 +175,16 @@ class PulseSequence:
             max_gradient_amplitudes = max([torch.max(grad.waveform).item() for grad in grad_objects])
 
             for init_time, end_time in empty_grad_segments:
-                plt.plot([init_time * 1e-3, end_time * 1e-3], [4, 4], color='k')
-                plt.plot([init_time * 1e-3, end_time * 1e-3], [6, 6], color='k')
-                plt.plot([init_time * 1e-3, end_time * 1e-3], [8, 8], color='k')
+                plt.plot([init_time * 1e-3, end_time * 1e-3], [3, 3], color='k')
+                plt.plot([init_time * 1e-3, end_time * 1e-3], [5, 5], color='k')
+                plt.plot([init_time * 1e-3, end_time * 1e-3], [7, 7], color='k')
             for init_time, grad in zip(grad_start_times, grad_objects):
-                plt.plot((init_time + grad.times) * 1e-3, 4 + grad.waveform[0] / max_gradient_amplitudes, color='k')
-                plt.plot((init_time + grad.times) * 1e-3, 6 + grad.waveform[1] / max_gradient_amplitudes, color='k')
-                plt.plot((init_time + grad.times) * 1e-3, 8 + grad.waveform[2] / max_gradient_amplitudes, color='k')
+                plt.plot((init_time + grad.times) * 1e-3, 3 + grad.waveform[0] / max_gradient_amplitudes, color='k')
+                plt.plot((init_time + grad.times) * 1e-3, 5 + grad.waveform[1] / max_gradient_amplitudes, color='k')
+                plt.plot((init_time + grad.times) * 1e-3, 7 + grad.waveform[2] / max_gradient_amplitudes, color='k')
 
         if len(rf_objects) == 0:
-            plt.plot([0, max_length * 1e-3], [10, 10], color='k')
+            plt.plot([0, max_length * 1e-3], [9, 9], color='k')
         else:
             rf_start_times, rf_objects = zip(*rf_objects)
             rf_segments, empty_rf_segments = self.get_segments(rf_start_times, max_length, rf_objects)
@@ -193,16 +192,18 @@ class PulseSequence:
             max_rf_amplitude = max([max(rf.magnitude) for rf in rf_objects])
 
             for init_time, end_time in empty_rf_segments:
-                plt.plot([init_time * 1e-3, end_time * 1e-3], [10, 10], color='k')
+                plt.plot([init_time * 1e-3, end_time * 1e-3], [9, 9], color='k')
             for init_time, rf in zip(rf_start_times, rf_objects):
-                plt.plot((init_time + rf.times) * 1e-3, 10 + rf.magnitude / max_rf_amplitude, color='k')
+                plt.plot((init_time + rf.times) * 1e-3, 9 + rf.magnitude / max_rf_amplitude, color='k')
 
-        plt.xlim([0, max_length * 1e-3])
-        plt.ylim([0, 12])
-        plt.yticks([2, 4, 6, 8, 10], ['$ADC$', '$G_x$', '$G_y$', '$G_z$', '$RF$'], fontsize=14)
-        plt.xticks(fontsize=14)
         plt.xlabel('Time (ms)', fontsize=16)
+        plt.xlim([0, max_length * 1e-3])
+        plt.xticks(fontsize=14)
 
+        plt.ylim([0, 10.1])
+        plt.yticks([1, 3, 5, 7, 9], ['$ADC$', '$G_x$', '$G_y$', '$G_z$', '$RF$'], fontsize=14)
+
+        plt.tick_params(axis='both', length=0)
         ax.spines["top"].set_visible(False)
         ax.spines["right"].set_visible(False)
         ax.spines["left"].set_visible(False)
