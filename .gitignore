@@ -178,7 +178,7 @@ cython_debug/
 
 # Test files
 test.py
-test.py
+main.py
 
 # Idea
 .idea/

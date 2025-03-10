@@ -5,13 +5,6 @@ import torch
 
 from constants import EPSILON
 
-
-class SequenceEvent:
-    def __init__(self, name: str, init_time: float):
-        self.name = name
-        self.init_time = init_time
-
-
 class SequenceObject:
     def __init__(self, times: torch.Tensor, waveform: torch.Tensor):
         if len(times) != waveform.shape[-1]:
