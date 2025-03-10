@@ -5,6 +5,7 @@ import numpy as np
 import torch
 from matplotlib import pyplot as plt
 
+from constants import GAMMA_RAD
 from sequence.core import SequenceObject, determine_times
 from sequence.gradient import Gradient
 from simulate import BlochDispatcher
@@ -42,7 +43,7 @@ class RFPulse(SequenceObject):
         """
         return torch.sum(torch.abs(self.waveform * 1e6) ** 2 * self.dt * 1e-6, dim=0).item()
 
-    def set_optimal_amplitude(self, desired_flip_angle: float, df_range: float = 5000,
+    def get_optimal_amplitude(self, desired_flip_angle: float, df_range: float = 5000,
                               b1_range: tuple[float, float] = (0, 30e-6)) -> float:
         n_isochromats = max(1, int(df_range // 500)) * 10
         df = torch.cat((-torch.logspace(math.log(df_range / 2) / math.log(10), 0, n_isochromats // 2),
@@ -136,6 +137,20 @@ class RFPulse(SequenceObject):
 
         return passband[-1] - passband[0]
 
+    def get_bloch_siegert_shift(self) -> float:
+        """
+        Calculate the Bloch-Siegert phase shift.
+
+        Returns:
+            float: The Bloch-Siegert phase shift.
+        """
+        omega_0 = 2 * torch.pi * self.transmit_offset
+        omega_b1 = GAMMA_RAD * torch.abs(self._normalized_waveform)
+
+        K_bs = torch.sum(omega_b1 ** 2 / (2 * omega_0) * self.dt * 1e-6, dim=0).item()
+
+        return self.amplitude ** 2 * K_bs
+
     def display(self) -> None:
         fig, ax = plt.subplots(2, 1, sharex=True)
 
@@ -213,13 +228,14 @@ def gaussian(duration: int, bandwidth: float, *,
     return RFPulse(times, waveform)
 
 
-def fermi(duration: int, alpha: float, *, n: Optional[int] = None, dt: Optional[float] = None) -> RFPulse:
+def fermi(duration: int, t0: int, alpha: float, *, n: Optional[int] = None, dt: Optional[float] = None) -> RFPulse:
     """
     Generate a Fermi pulse with a choice of duration and alpha. Sampling can be specified by n or dt.
 
     Args:
         duration (int): The duration of the pulse in microseconds.
-        alpha (float): The transition width of the Fermi pulse.
+        t0 (int): The pulse full-width half-maximum in microseconds.
+        alpha (float): The scaling determining the transition steepness.
         n (int | None): The number of samples to generate. Defaults to None.
         dt (float | None): The sampling interval in microseconds. Defaults to None.
 
@@ -227,9 +243,9 @@ def fermi(duration: int, alpha: float, *, n: Optional[int] = None, dt: Optional[
         RFPulse: An RFPulse object representing the generated Fermi pulse.
     """
     times = determine_times(duration, n, dt)
-    tau = duration / (2 + 13.81 / alpha)
+    pulse_width = 2 * t0 + 13.81 * alpha
 
-    waveform = 1 / (1 + torch.exp((alpha * (torch.abs(times - duration / 2) - tau) / tau)))
+    waveform = 1 / (1 + torch.exp((torch.abs(times - duration // 2) - t0 / 2) / alpha))
     waveform /= torch.max(waveform)
 
     return RFPulse(times, waveform)
