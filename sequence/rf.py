@@ -14,9 +14,9 @@ from simulate import BlochDispatcher
 class RFPulse(SequenceObject):
     def __init__(self, times: torch.Tensor, waveform: torch.Tensor):
         super().__init__(times, waveform)
-        self.transmit_offset = 0.0
         self.asymmetry = 0.5
-        self.nco_phase = 0
+        self.transmit_phase = 0
+        self.transmit_frequency = 0.0
 
     @property
     def is_phase_modulated(self) -> bool:
@@ -28,13 +28,13 @@ class RFPulse(SequenceObject):
     def waveform(self) -> torch.Tensor:
         asymmetrical_shift = round(self.n * (self.asymmetry - 0.5))
 
-        rolled_waveform = torch.roll(super().waveform, asymmetrical_shift) * np.exp(1j * self.nco_phase)
+        rolled_waveform = torch.roll(super().waveform, asymmetrical_shift) * np.exp(1j * self.transmit_phase)
         if asymmetrical_shift < 0:
             rolled_waveform[asymmetrical_shift:] = 0
         else:
             rolled_waveform[:asymmetrical_shift] = 0
 
-        return rolled_waveform * torch.exp(1j * 2 * torch.pi * self.transmit_offset * self._current_times * 1e-6)
+        return rolled_waveform * torch.exp(1j * 2 * torch.pi * self.transmit_frequency * self._current_times * 1e-6)
 
     @property
     def energy(self) -> float:

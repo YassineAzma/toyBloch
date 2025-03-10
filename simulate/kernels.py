@@ -25,12 +25,12 @@ def cpu_relaxation(t1: float, t2: float, dt: float, df: np.ndarray, initial_magn
     """
     # Initialize arrays - batch dimension first to maintain memory contiguity
     n_isochromats = len(df)
-    n_steps = int(max(5 * t1 * 1e6 / dt, 5 * t2 * 1e6 / dt))
+    n_steps = int(max(5 * t1 / dt, 5 * t2 / dt))
     magnetisation = np.zeros((n_isochromats, n_steps + 1, 3), dtype=np.float64)
-    magnetisation[:, 0, :] = initial_magnetisation
+    magnetisation[:, 0] = initial_magnetisation
 
     # Prepare free precession matrices
-    A, B = simulate.rotations.cpu_free_precession(t1, t2, df, dt * 1e-6)
+    A, B = simulate.rotations.cpu_free_precession(t1, t2, df, dt)
 
     # Run simulation
     for i in nb.prange(n_isochromats):
@@ -64,16 +64,16 @@ def cpu_non_selective(t1: float, t2: float, dt: float, df: np.array,
     n_isochromats = len(df)
     n_steps = len(rf)
     magnetisation = np.zeros((n_isochromats, n_steps + 1, 3), dtype=np.float64)
-    magnetisation[:, 0, :] = initial_magnetisation
+    magnetisation[:, 0] = initial_magnetisation
 
     # Prepare RF rotation matrices
-    rf_mag, rf_phase = GAMMA_RAD * np.abs(rf) * dt * 1e-6, np.angle(rf)
+    rf_mag, rf_phase = GAMMA_RAD * np.abs(rf) * dt, np.angle(rf)
     rf_rotations = simulate.rotations.cpu_rotate_transverse(rf_mag, rf_phase)
     active_rf = np.zeros(n_steps, dtype=np.bool)
     active_rf[np.where(np.abs(rf) > 0)[0]] = True
 
     # Prepare free precession matrices
-    A, B = simulate.rotations.cpu_free_precession(t1, t2, df, dt * 1e-6)
+    A, B = simulate.rotations.cpu_free_precession(t1, t2, df, dt)
 
     # Run simulation
     for i in nb.prange(n_isochromats):
@@ -113,10 +113,10 @@ def cpu_spatial_selective(t1: float, t2: float, dt: float, pos: np.array,
     n_isochromats = pos.shape[1]
     n_steps = len(rf)
     magnetisation = np.zeros((n_isochromats, n_steps + 1, 3), dtype=np.float64)
-    magnetisation[:, 0, :] = initial_magnetisation
+    magnetisation[:, 0] = initial_magnetisation
 
     # Prepare RF rotation matrices
-    rf_mag, rf_phase = GAMMA_RAD * np.abs(rf) * dt * 1e-6, np.angle(rf)
+    rf_mag, rf_phase = GAMMA_RAD * np.abs(rf) * dt, np.angle(rf)
     rf_rotations = simulate.rotations.cpu_rotate_transverse(rf_mag, rf_phase)
     active_rf = np.zeros(n_steps, dtype=np.bool)
     active_rf[np.where(np.abs(rf) > 0)[0]] = True
@@ -128,10 +128,10 @@ def cpu_spatial_selective(t1: float, t2: float, dt: float, pos: np.array,
     for j in nb.prange(n_steps):
         for axis in active_gradient_axes[j]:
             grad_rot[axis, j] = simulate.rotations.cpu_rotate_round_z(
-                (GAMMA_RAD * grad[axis, j] * dt * 1e-6 * pos[axis, :]))
+                (GAMMA_RAD * grad[axis, j] * dt * pos[axis, :]))
 
     # Prepare free precession matrix
-    A, B = simulate.rotations.cpu_free_precession(t1, t2, np.zeros(1), dt * 1e-6)
+    A, B = simulate.rotations.cpu_free_precession(t1, t2, np.zeros(1), dt)
 
     # Run simulation
     for i in nb.prange(n_isochromats):
@@ -176,10 +176,10 @@ def cpu_spatial_spectral(t1: float, t2: float, dt: float, df: np.array, pos: np.
     n_isochromats = len(df)
     n_steps = len(rf)
     magnetisation = np.zeros((n_isochromats, n_steps + 1, 3), dtype=np.float64)
-    magnetisation[:, 0, :] = initial_magnetisation
+    magnetisation[:, 0] = initial_magnetisation
 
     # Prepare RF rotation matrices
-    rf_mag, rf_phase = GAMMA_RAD * np.abs(rf) * dt * 1e-6, np.angle(rf)
+    rf_mag, rf_phase = GAMMA_RAD * np.abs(rf) * dt, np.angle(rf)
     rf_rotations = simulate.rotations.cpu_rotate_transverse(rf_mag, rf_phase)
     active_rf = np.zeros(n_steps, dtype=np.bool)
     active_rf[np.where(np.abs(rf) > 0)[0]] = True
@@ -191,10 +191,10 @@ def cpu_spatial_spectral(t1: float, t2: float, dt: float, df: np.array, pos: np.
     for j in nb.prange(n_steps):
         for axis in active_gradient_axes[j]:
             grad_rot[axis, j] = simulate.rotations.cpu_rotate_round_z(
-                (GAMMA_RAD * grad[axis, j] * dt * 1e-6 * pos[axis, :]))
+                (GAMMA_RAD * grad[axis, j] * dt * pos[axis, :]))
 
     # Prepare free precession matrix
-    A, B = simulate.rotations.cpu_free_precession(t1, t2, df, dt * 1e-6)
+    A, B = simulate.rotations.cpu_free_precession(t1, t2, df, dt)
 
     # Run simulation
     for i in nb.prange(n_isochromats):
@@ -232,12 +232,12 @@ def gpu_relaxation(t1: float, t2: float, dt: float, df: torch.Tensor,
     # Initialize arrays - batch dimension first to maintain memory contiguity
     with torch.no_grad():
         n_isochromats = len(df)
-        n_steps = int(max(5 * t1 * 1e6 / dt, 5 * t2 * 1e6 / dt))
+        n_steps = int(max(5 * t1 / dt, 5 * t2 / dt))
         magnetisation = torch.zeros((n_steps + 1, n_isochromats, 3, 1), dtype=torch.float64, device='cuda')
         magnetisation[0] = initial_magnetisation[:, torch.newaxis]
 
         # Prepare free precession matrices
-        A, B = simulate.rotations.gpu_free_precession(t1, t2, df, dt * 1e-6)
+        A, B = simulate.rotations.gpu_free_precession(t1, t2, df, dt)
 
         # Run simulation
         for i in range(n_steps):
@@ -271,11 +271,11 @@ def gpu_non_selective(t1: float, t2: float, dt: float, df: torch.Tensor,
         magnetisation[0] = initial_magnetisation[:, torch.newaxis]
 
         # Prepare RF rotation matrices
-        rf_mag, rf_phase = GAMMA_RAD * torch.abs(rf) * dt * 1e-6, torch.angle(rf)
+        rf_mag, rf_phase = GAMMA_RAD * torch.abs(rf) * dt, torch.angle(rf)
         rf_rotations = simulate.rotations.gpu_rotate_transverse(rf_mag, rf_phase)
 
         # Prepare free precession matrices
-        A, B = simulate.rotations.gpu_free_precession(t1, t2, df, dt * 1e-6)
+        A, B = simulate.rotations.gpu_free_precession(t1, t2, df, dt)
 
         # Run simulation
         for i in range(n_steps):
@@ -310,16 +310,16 @@ def gpu_spatial_selective(t1: float, t2: float, dt: float, pos: torch.Tensor,
         magnetisation[0] = initial_magnetisation[:, torch.newaxis]
 
         # Prepare RF rotation matrices
-        rf_mag, rf_phase = GAMMA_RAD * torch.abs(rf) * dt * 1e-6, torch.angle(rf)
+        rf_mag, rf_phase = GAMMA_RAD * torch.abs(rf) * dt, torch.angle(rf)
         rf_rotations = simulate.rotations.gpu_rotate_transverse(rf_mag, rf_phase)
 
         # Prepare gradient rotation matrices
-        grad_rot = pos[:, :, torch.newaxis] * GAMMA_RAD * grad[:, torch.newaxis, :] * dt * 1e-6
+        grad_rot = pos[:, :, torch.newaxis] * GAMMA_RAD * grad[:, torch.newaxis, :] * dt
         grad_rot = torch.permute(grad_rot, (0, 2, 1))
         grad_rotations = simulate.rotations.gpu_rotate_round_z(grad_rot)
 
         # Prepare free precession matrix
-        A, B = simulate.rotations.gpu_free_precession(t1, t2, torch.zeros(1), dt * 1e-6)
+        A, B = simulate.rotations.gpu_free_precession(t1, t2, torch.zeros(1), dt)
 
         active_gradient_axes = torch.where(torch.any(torch.abs(grad) > 0, dim=1))[0]
 
@@ -360,16 +360,16 @@ def gpu_spatial_spectral(t1: float, t2: float, dt: float, df: torch.Tensor, pos:
         magnetisation[0] = initial_magnetisation[:, torch.newaxis]
 
         # Prepare RF rotation matrices
-        rf_mag, rf_phase = GAMMA_RAD * torch.abs(rf) * dt * 1e-6, torch.angle(rf)
+        rf_mag, rf_phase = GAMMA_RAD * torch.abs(rf) * dt, torch.angle(rf)
         rf_rotations = simulate.rotations.gpu_rotate_transverse(rf_mag, rf_phase)
 
         # Prepare gradient rotation matrices
-        grad_rot = pos[:, :, torch.newaxis] * GAMMA_RAD * grad[:, torch.newaxis, :] * dt * 1e-6
+        grad_rot = pos[:, :, torch.newaxis] * GAMMA_RAD * grad[:, torch.newaxis, :] * dt
         grad_rot = torch.permute(grad_rot, (0, 2, 1))
         grad_rotations = simulate.rotations.gpu_rotate_round_z(grad_rot)
 
         # Prepare free precession matrices
-        A, B = simulate.rotations.gpu_free_precession(t1, t2, df, dt * 1e-6)
+        A, B = simulate.rotations.gpu_free_precession(t1, t2, df, dt)
 
         active_gradient_axes = torch.where(torch.any(torch.abs(grad) > 0, dim=1))
         # Run simulation

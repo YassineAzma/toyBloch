@@ -171,7 +171,7 @@ class BlochDispatcher:
             warnings.warn('Relaxation simulation has been selected. Setting dt to at least 100.0 us!')
             dt = max(100., dt)
 
-        kernel_args = ([t1, t2, dt] + self.prepare_kernel_arguments(style, gpu_available) +
+        kernel_args = ([t1, t2, dt * 1e-6] + self.prepare_kernel_arguments(style, gpu_available) +
                        [self._convert_to_device(initial_magnetisation, gpu_available)])
 
         init_time = time.perf_counter()
